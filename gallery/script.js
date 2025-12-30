@@ -16,9 +16,21 @@ async function loadGallery() {
             const section = document.createElement('div');
             section.className = 'script-section';
 
+            const titleContainer = document.createElement('div');
+            titleContainer.className = 'script-header';
+
             const title = document.createElement('h2');
             title.textContent = scriptData.script.replace(/_/g, ' ');
-            section.appendChild(title);
+
+            const scriptLink = document.createElement('a');
+            scriptLink.href = `https://github.com/josh-gree/gen-art-gallery/blob/main/scripts/${scriptData.script}.py`;
+            scriptLink.textContent = 'view source';
+            scriptLink.className = 'script-link';
+            scriptLink.target = '_blank';
+
+            titleContainer.appendChild(title);
+            titleContainer.appendChild(scriptLink);
+            section.appendChild(titleContainer);
 
             const grid = document.createElement('div');
             grid.className = 'image-grid';

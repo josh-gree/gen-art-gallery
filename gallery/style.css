@@ -53,11 +53,34 @@ main {
     margin-bottom: 4rem;
 }
 
+.script-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
 .script-section h2 {
     font-size: 1.8rem;
-    margin-bottom: 1.5rem;
+    margin: 0;
     color: #00d4ff;
     text-transform: capitalize;
+}
+
+.script-link {
+    font-size: 0.9rem;
+    color: #a0a0a0;
+    text-decoration: none;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid rgba(160, 160, 160, 0.3);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.script-link:hover {
+    color: #00d4ff;
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
 }
 
 .image-grid {
