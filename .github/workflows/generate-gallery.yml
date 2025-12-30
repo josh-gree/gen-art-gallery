@@ -18,14 +18,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install gen-art-framework pillow pyyaml
+          enable-cache: true
 
       - name: Generate art from scripts
         run: |
@@ -43,7 +39,7 @@ jobs:
               mkdir -p "gallery/images/$script_name"
 
               # Generate 10 images
-              gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
+              uvx gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
 
               # Add metadata to gallery.json
               python3 << EOF
