@@ -1,0 +1,86 @@
+name: Generate Art Gallery
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  generate-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install gen-art-framework pillow pyyaml
+
+      - name: Generate art from scripts
+        run: |
+          mkdir -p gallery/images
+
+          # Generate metadata file
+          echo "[]" > gallery/gallery.json
+
+          for script in scripts/*.py; do
+            if [ -f "$script" ]; then
+              script_name=$(basename "$script" .py)
+              echo "Generating art for $script_name..."
+
+              # Create directory for this script's images
+              mkdir -p "gallery/images/$script_name"
+
+              # Generate 10 images
+              gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
+
+              # Add metadata to gallery.json
+              python3 << EOF
+          import json
+          import os
+          from pathlib import Path
+
+          with open('gallery/gallery.json', 'r') as f:
+              gallery = json.load(f)
+
+          images = []
+          img_dir = Path('gallery/images/$script_name')
+          for img in sorted(img_dir.glob('*.png')):
+              images.append({
+                  'filename': img.name,
+                  'path': f'images/$script_name/{img.name}'
+              })
+
+          gallery.append({
+              'script': '$script_name',
+              'images': images
+          })
+
+          with open('gallery/gallery.json', 'w') as f:
+              json.dump(gallery, f, indent=2)
+          EOF
+            fi
+          done
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './gallery'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
