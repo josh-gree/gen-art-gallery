@@ -37,7 +37,7 @@ jobs:
               mkdir -p "gallery/images/$script_name"
 
               # Generate 10 images
-              uvx gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
+              uvx --from gen-art-framework gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
 
               # Add metadata to gallery.json
               python3 << EOF
