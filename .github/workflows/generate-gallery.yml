@@ -17,49 +17,119 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+
+      - name: Download previous gallery
+        continue-on-error: true
+        run: |
+          # Try to download the previous gallery from GitHub Pages
+          mkdir -p gallery/images
+
+          # Download existing gallery.json
+          curl -f -L https://josh-gree.github.io/gen-art-gallery/gallery.json -o gallery/gallery.json 2>/dev/null || \
+          echo "[]" > gallery/gallery.json
+
+          # Download existing images for each script in gallery.json
+          if [ -f gallery/gallery.json ] && [ "$(cat gallery/gallery.json)" != "[]" ]; then
+            python3 << 'PYEOF'
+          import json
+          import subprocess
+          import os
+          from pathlib import Path
+
+          try:
+              with open('gallery/gallery.json', 'r') as f:
+                  gallery = json.load(f)
+
+              for entry in gallery:
+                  script_name = entry['script']
+                  img_dir = Path(f'gallery/images/{script_name}')
+                  img_dir.mkdir(parents=True, exist_ok=True)
+
+                  for img in entry['images']:
+                      url = f"https://josh-gree.github.io/gen-art-gallery/{img['path']}"
+                      output = img_dir / img['filename']
+                      subprocess.run(['curl', '-f', '-L', '-s', url, '-o', str(output)],
+                                   capture_output=True)
+          except Exception as e:
+              print(f"Could not download previous gallery: {e}")
+          PYEOF
+          fi
 
       - name: Generate art from scripts
         run: |
           mkdir -p gallery/images
 
-          # Generate metadata file
-          echo "[]" > gallery/gallery.json
+          # Get list of changed/new scripts
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            changed_scripts=$(git diff --name-only HEAD~1 HEAD -- scripts/*.py || echo "")
+            new_scripts=$(git diff --diff-filter=A --name-only HEAD~1 HEAD -- scripts/*.py || echo "")
+          else
+            # First commit, generate all
+            changed_scripts=$(ls scripts/*.py 2>/dev/null || echo "")
+            new_scripts="$changed_scripts"
+          fi
+
+          # Load existing gallery.json
+          if [ ! -f gallery/gallery.json ]; then
+            echo "[]" > gallery/gallery.json
+          fi
 
           for script in scripts/*.py; do
             if [ -f "$script" ]; then
               script_name=$(basename "$script" .py)
-              echo "Generating art for $script_name..."
 
-              # Create directory for this script's images
-              mkdir -p "gallery/images/$script_name"
+              # Check if this script needs regeneration
+              should_generate=false
+              if echo "$changed_scripts" | grep -q "$script"; then
+                echo "Regenerating art for modified script: $script_name..."
+                should_generate=true
+                # Remove old images for this script
+                rm -rf "gallery/images/$script_name"
+              elif [ ! -d "gallery/images/$script_name" ]; then
+                echo "Generating art for new script: $script_name..."
+                should_generate=true
+              else
+                echo "Skipping unchanged script: $script_name"
+              fi
 
-              # Generate 10 images
-              uvx --from gen-art-framework gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
+              if [ "$should_generate" = true ]; then
+                # Create directory for this script's images
+                mkdir -p "gallery/images/$script_name"
 
-              # Add metadata to gallery.json
+                # Generate 10 images
+                uvx --from gen-art-framework gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
+              fi
+
+              # Update metadata in gallery.json (for all scripts)
               python3 << EOF
           import json
-          import os
           from pathlib import Path
 
           with open('gallery/gallery.json', 'r') as f:
               gallery = json.load(f)
 
+          # Remove old entry for this script if exists
+          gallery = [entry for entry in gallery if entry['script'] != '$script_name']
+
           images = []
           img_dir = Path('gallery/images/$script_name')
-          for img in sorted(img_dir.glob('*.png')):
-              images.append({
-                  'filename': img.name,
-                  'path': f'images/$script_name/{img.name}'
-              })
+          if img_dir.exists():
+              for img in sorted(img_dir.glob('*.png')):
+                  images.append({
+                      'filename': img.name,
+                      'path': f'images/$script_name/{img.name}'
+                  })
 
-          gallery.append({
-              'script': '$script_name',
-              'images': images
-          })
+          if images:
+              gallery.append({
+                  'script': '$script_name',
+                  'images': images
+              })
 
           with open('gallery/gallery.json', 'w') as f:
               json.dump(gallery, f, indent=2)
