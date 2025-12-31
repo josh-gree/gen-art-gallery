@@ -102,7 +102,7 @@ jobs:
                 mkdir -p "gallery/images/$script_name"
 
                 # Generate 10 images
-                uvx --from gen-art-framework gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
+                uvx --from gen-art-framework --with networkx gen-art sample "$script" -n 10 -o "gallery/images/$script_name"
               fi
 
               # Update metadata in gallery.json (for all scripts)
